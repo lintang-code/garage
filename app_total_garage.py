@@ -16,22 +16,18 @@ from datetime import datetime
 # ==========================================
 st.set_page_config(page_title="Cloud Tuning Garage HUD", page_icon="🏁", layout="wide")
 
-# Perbaikan paksa warna font dan background sidebar agar terlihat sangat jelas di HP/Web
 st.markdown("""
     <style>
-    /* Background Utama Website */
     .main { 
         background-color: #0c0d10; 
         color: #ffffff; 
     }
     
-    /* PAKSA SIDEBAR (BAGIAN KIRI) AGAR SANGAT JELAS & KONTRAS */
     [data-testid="stSidebar"] {
-        background-color: #1a1d26 !important; /* Warna abu-abu gelap solid, bukan hitam pekat */
-        border-right: 3px solid #ff5722 !important; /* Garis pembatas oranye tegas */
+        background-color: #1a1d26 !important; 
+        border-right: 3px solid #ff5722 !important; 
     }
     
-    /* Paksa semua teks di dalam sidebar agar berwarna putih terang/oranye */
     [data-testid="stSidebar"] .stMarkdown p, 
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] span,
@@ -41,7 +37,6 @@ st.markdown("""
         font-weight: bold !important;
     }
     
-    /* WARNAI KHUSUS AREA IMPORT FILE & BAGIAN KIRI BAWAH */
     [data-testid="stSidebar"] [data-testid="stFileUploader"] section {
         background-color: #242936 !important;
         border: 2px dashed #ff5722 !important;
@@ -52,7 +47,6 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Tombol Reset di Kiri Bawah */
     [data-testid="stSidebar"] button {
         background-color: #ff5722 !important;
         color: #ffffff !important;
@@ -61,21 +55,18 @@ st.markdown("""
         font-weight: bold !important;
     }
     
-    /* Warna teks input box di dalam sidebar */
     [data-testid="stSidebar"] input {
         color: #ffffff !important;
         background-color: #10121a !important;
         border: 1px solid #ff5722 !important;
     }
     
-    /* Judul Utama */
     h1, h2, h3 { 
         color: #ff5722 !important; 
         font-family: 'Impact', 'Arial Black', sans-serif; 
         letter-spacing: 1px;
     }
     
-    /* Kartu List Komponen */
     .rpg-row {
         background-color: #181b24;
         border: 2px solid #282d3d;
@@ -155,9 +146,6 @@ MASTER_KOMPONEN = {
     ]
 }
 
-# ==========================================
-# WEB CLOUD STORAGE INITIALIZATION
-# ==========================================
 if "garasi_data" not in st.session_state:
     st.session_state["garasi_data"] = {}
 
@@ -191,15 +179,16 @@ if st.sidebar.button("🗑️ RESET ALL DATA WEB"):
     st.rerun()
 
 # ==========================================
-# CALCULATION & ENGINE ENGINE CORE
+# CALCULATION CORE
 # ==========================================
 semua_hasil_part = []
 skor_sistem = {kategori: [] for kategori in MASTER_KOMPONEN.keys()}
 
 st.write("### 📝 1. PANEL ESTIMASI PEMASANGAN SPEREPART")
-st.info("💡 Data yang Anda isi di bawah ini tersimpan aman di browser selama tab tidak ditutup. Unduh file JSON di bagian bawah untuk menyimpan cadangan permanen.")
+st.info("💡 Data tersimpan aman di browser selama tab aktif. Unduh JSON di bawah untuk cadangan permanen.")
 
-with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREPART"):
+# PERBAIKAN: Mengubah expanded menjadi False agar panel input terlipat rapi sejak awal
+with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREPART", expanded=False):
     for kategori, list_part in MASTER_KOMPONEN.items():
         st.markdown(f"#### 🔹 Kategori: {kategori}")
         for part in list_part:
@@ -262,3 +251,56 @@ with col_radar:
     kategori_radar = list(skor_sistem.keys())
     nilai_radar = [round(sum(skor_sistem[kat])/len(skor_sistem[kat])) for kat in kategori_radar]
     kategori_radar.append(kategori_radar[0])
+    nilai_radar.append(nilai_radar[0])
+
+    fig = go.Figure(data=go.Scatterpolar(r=nilai_radar, theta=kategori_radar, fill='toself', fillcolor='rgba(255, 87, 34, 0.2)', line=dict(color='#ff5722', width=3)))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333"), angularaxis=dict(gridcolor="#333")), showlegend=False, height=300, paper_bgcolor='rgba(0,0,0,0)')
+    st.plotly_chart(fig, use_container_width=True)
+
+with col_stats:
+    total_health = round(sum([p["persen"] for p in semua_hasil_part]) / len(semua_hasil_part))
+    
+    if total_health >= 80:
+        badge_status, b_color = "PERFORMA MOTOR PRIMA 🔥", "#00ffcc"
+    elif total_health >= 50:
+        badge_status, b_color = "BUTUH REPARASI / SERVIS 🔧", "#ffcc00"
+    else:
+        badge_status, b_color = "KONDISI KRITIS / BAHAYA 🚨", "#ff3333"
+        
+    st.markdown(f"""
+        <div style="background-color:#14161d; border:2px solid {b_color}; padding:20px; border-radius:10px; text-align:center;">
+            <p style="margin:0; font-size:14px; color:#a0a5b5; font-weight:bold;">KESEHATAN TOTAL KENDARAAN</p>
+            <h1 style='font-size:65px; margin:5px 0; color:{b_color} !important;'>{total_health}%</h1>
+            <p style="margin:0; font-size:18px; color:#ffffff; font-weight:bold;">{badge_status}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    ada_critical = any(p["status"] == "CRITICAL" for p in semua_hasil_part)
+    if ada_critical:
+        st.toast("⚠️ WARNING: Deteksi Komponen Berstatus Kritis! Segera Periksa Hangar.", icon="🚨")
+
+# ==========================================
+# SMART FILTER VISUAL WEB CARD GRID
+# ==========================================
+st.markdown("---")
+st.write("### 🚨 3. LIVE MONITORING RESPONSIVE CARD STATUS")
+
+semua_hasil_part.sort(key=lambda x: (0 if x["status"] == "CRITICAL" else (1 if x["status"] == "WARNING" else 2)))
+
+for p in semua_hasil_part:
+    km_text = f"{p['sisa_km']:,} Km" if isinstance(p['sisa_km'], int) else p['sisa_km']
+    hari_text = f"{p['sisa_hari']} Hari" if p['sisa_hari'] != 9999 else "PERMANEN"
+    
+    st.markdown(f"""
+        <div class="rpg-row" style="border-left: 8px solid {p['warna']};">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="flex: 2; min-width: 220px;">
+                    <span class="category-tag">{p['kategori']}</span>
+                    <div class="part-title">{p['nama']}</div>
+                </div>
+                <div style="flex: 1; min-width: 100px;">
+                    <div class="stat-label">Sisa Jarak</div>
+                    <div class="stat-value" style="color: {p['warna']};">{km_text}</div>
+                </div>
+                <div style="flex: 1; min-width: 100px;">
+                    <div class="stat-label">Sisa W

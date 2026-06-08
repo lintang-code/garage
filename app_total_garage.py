@@ -1,120 +1,14 @@
-# ==========================================
-# KUMPULAN IMPORT LIBRARY (VERSI WEB FINAL)
-# ==========================================
 import streamlit as st          
 import plotly.graph_objects as go 
 import pandas as pd             
 import hashlib                  
-import threading                
-import time                     
 import json                     
-import base64                   
 from datetime import datetime   
 
-# ==========================================
-# CONFIGURASI UI THEME (HIGH CONTRAST WEB HUD)
-# ==========================================
-st.set_page_config(page_title="Cloud Tuning Garage HUD", page_icon="🏁", layout="wide")
+# Konfigurasi halaman dasar
+st.set_page_config(page_title="Garage HUD Cloud", page_icon="🏁", layout="wide")
 
-st.markdown("""
-    <style>
-    .main { 
-        background-color: #0c0d10; 
-        color: #ffffff; 
-    }
-    
-    [data-testid="stSidebar"] {
-        background-color: #1a1d26 !important; 
-        border-right: 3px solid #ff5722 !important; 
-    }
-    
-    [data-testid="stSidebar"] .stMarkdown p, 
-    [data-testid="stSidebar"] label, 
-    [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] div,
-    [data-testid="stSidebar"] small {
-        color: #ffffff !important;
-        font-weight: bold !important;
-    }
-    
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] section {
-        background-color: #242936 !important;
-        border: 2px dashed #ff5722 !important;
-    }
-    
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] text,
-    [data-testid="stSidebar"] [data-testid="stFileUploader"] span {
-        color: #ffffff !important;
-    }
-    
-    [data-testid="stSidebar"] button {
-        background-color: #ff5722 !important;
-        color: #ffffff !important;
-        border-radius: 5px !important;
-        width: 100% !important;
-        font-weight: bold !important;
-    }
-    
-    [data-testid="stSidebar"] input {
-        color: #ffffff !important;
-        background-color: #10121a !important;
-        border: 1px solid #ff5722 !important;
-    }
-    
-    h1, h2, h3 { 
-        color: #ff5722 !important; 
-        font-family: 'Impact', 'Arial Black', sans-serif; 
-        letter-spacing: 1px;
-    }
-    
-    .rpg-row {
-        background-color: #181b24;
-        border: 2px solid #282d3d;
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    .part-title {
-        font-size: 20px;
-        font-weight: bold;
-        color: #ffffff;
-        margin-bottom: 5px;
-    }
-    .category-tag {
-        background-color: #ff5722;
-        color: #ffffff;
-        padding: 3px 10px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
-    .stat-label {
-        color: #a0a5b5;
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .stat-value {
-        font-size: 18px;
-        font-weight: bold;
-        color: #ffffff;
-    }
-    .status-badge-inline {
-        padding: 6px 12px;
-        border-radius: 5px;
-        font-weight: bold;
-        font-size: 14px;
-        text-align: center;
-        display: inline-block;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==========================================
-# MASTER DATA KATEGORI & KOMPONEN
-# ==========================================
+# Master data komponen
 MASTER_KOMPONEN = {
     "Mesin Utama": [
         {"id": "eng_oli", "nama": "Oli Mesin", "limit_km": 3000, "limit_bulan": 2},
@@ -149,50 +43,39 @@ MASTER_KOMPONEN = {
 if "garasi_data" not in st.session_state:
     st.session_state["garasi_data"] = {}
 
-# ==========================================
-# SIDEBAR CONTROLLER
-# ==========================================
-st.sidebar.markdown("# 🏁 CLOUD GARAGE")
-st.sidebar.markdown("---")
+# Sidebar Kiri
+st.sidebar.title("🏁 CLOUD GARAGE")
+st.sidebar.write("---")
 nama_motor = st.sidebar.text_input("MODEL MOTOR", value="HONDA CBR 250RR")
 odo_now = st.sidebar.number_input("ODOMETER SEKARANG (KM)", min_value=0, value=25000)
 km_harian = st.sidebar.slider("JARAK TEMPUH HARIAN (KM)", min_value=5, max_value=200, value=40)
 
 hash_garasi = hashlib.sha256(nama_motor.encode()).hexdigest()[:10].upper()
-st.sidebar.write(f"🔑 **WEB CHASSIS ID:** WEB-{hash_garasi}")
+st.sidebar.write(f"🔑 **CHASSIS ID:** WEB-{hash_garasi}")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🛠️ BACKUP TOOLKIT")
-
+st.sidebar.write("---")
+st.sidebar.subheader("🛠️ BACKUP TOOLKIT")
 uploaded_file = st.sidebar.file_uploader("Import Data Garasi (.json)", type=["json"])
 if uploaded_file is not None:
     try:
-        loaded_data = json.load(uploaded_file)
-        for k, v in loaded_data.items():
-            st.session_state["garasi_data"][k] = v
+        st.session_state["garasi_data"] = json.load(uploaded_file)
         st.sidebar.success("✅ Data Berhasil Diimport!")
-    except Exception:
-        st.sidebar.error("❌ File JSON Tidak Valid.")
+    except:
+        st.sidebar.error("❌ File tidak valid.")
 
-if st.sidebar.button("🗑️ RESET ALL DATA WEB"):
+if st.sidebar.button("🗑️ RESET ALL DATA"):
     st.session_state["garasi_data"] = {}
     st.rerun()
 
-# ==========================================
-# CALCULATION CORE
-# ==========================================
+# Pemrosesan Data
 semua_hasil_part = []
 skor_sistem = {kategori: [] for kategori in MASTER_KOMPONEN.keys()}
 
-st.write("### 📝 1. PANEL ESTIMASI PEMASANGAN SPEREPART")
-st.info("💡 Data tersimpan aman di browser selama tab aktif. Unduh JSON di bawah untuk cadangan permanen.")
-
-# PERBAIKAN: Mengubah expanded menjadi False agar panel input terlipat rapi sejak awal
-with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREPART", expanded=False):
+st.subheader("📝 1. PANEL INPUT DATA SPAREPART")
+with st.expander("⚙️ KLIK DI SINI UNTUK MENGISI ODO / TANGGAL PASANG KOMPONEN", expanded=False):
     for kategori, list_part in MASTER_KOMPONEN.items():
-        st.markdown(f"#### 🔹 Kategori: {kategori}")
+        st.markdown(f"**🔹 Kategori: {kategori}**")
         for part in list_part:
-            
             state_key_odo = f"state_o_{part['id']}"
             state_key_tgl = f"state_t_{part['id']}"
             
@@ -202,7 +85,7 @@ with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREP
 
             c_name, c_odo, c_tgl = st.columns([2, 2, 2])
             with c_name:
-                st.markdown(f"<p style='padding-top:35px; font-weight:bold;'>{part['nama']}</p>", unsafe_allow_html=True)
+                st.write(f"**{part['nama']}**")
             with c_odo:
                 o_pasang = st.number_input(f"Odo Pasang (Km)", min_value=0, max_value=odo_now, value=int(saved_odo), key=f"o_{part['id']}")
             with c_tgl:
@@ -226,26 +109,23 @@ with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREP
                 sisa_hari_real = min(sisa_hari_real, sisa_hari_bln)
 
             if (isinstance(sisa_km_real, int) and sisa_km_real <= 0) or persen_sisa <= 0:
-                status, warna, teks_warna = "CRITICAL", "#ff3333", "#ffffff"
+                status = "CRITICAL"
             elif persen_sisa <= 25 or sisa_hari_real <= 14:
-                status, warna, teks_warna = "WARNING", "#ffcc00", "#121214"
+                status = "WARNING"
             else:
-                status, warna, teks_warna = "GOOD", "#00ffcc", "#121214"
+                status = "GOOD"
 
             semua_hasil_part.append({
                 "kategori": kategori, "nama": part["nama"], "sisa_km": sisa_km_real,
-                "sisa_hari": sisa_hari_real, "persen": persen_sisa, "status": status, 
-                "warna": warna, "teks_warna": teks_warna
+                "sisa_hari": sisa_hari_real, "persen": persen_sisa, "status": status
             })
             skor_sistem[kategori].append(persen_sisa)
 
-# ==========================================
-# MAIN GRAPHICS & RADAR DISPLAY
-# ==========================================
-st.markdown("---")
-st.title("🎛️ 2. TELEMETRI DIAGNOSTIK WEB HANGAR")
+# Tampilan Utama Telemetri
+st.write("---")
+st.header("🎛️ 2. TELEMETRI DIAGNOSTIK KENDARAAN")
 
-col_radar, col_stats = st.columns([2, 3])
+col_radar, col_stats = st.columns([1, 1])
 
 with col_radar:
     kategori_radar = list(skor_sistem.keys())
@@ -253,54 +133,19 @@ with col_radar:
     kategori_radar.append(kategori_radar[0])
     nilai_radar.append(nilai_radar[0])
 
-    fig = go.Figure(data=go.Scatterpolar(r=nilai_radar, theta=kategori_radar, fill='toself', fillcolor='rgba(255, 87, 34, 0.2)', line=dict(color='#ff5722', width=3)))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333"), angularaxis=dict(gridcolor="#333")), showlegend=False, height=300, paper_bgcolor='rgba(0,0,0,0)')
+    fig = go.Figure(data=go.Scatterpolar(r=nilai_radar, theta=kategori_radar, fill='toself'))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=False, height=280)
     st.plotly_chart(fig, use_container_width=True)
 
 with col_stats:
     total_health = round(sum([p["persen"] for p in semua_hasil_part]) / len(semua_hasil_part))
-    
+    st.metric(label="KESEHATAN TOTAL MOTOR", value=f"{total_health}%")
     if total_health >= 80:
-        badge_status, b_color = "PERFORMA MOTOR PRIMA 🔥", "#00ffcc"
+        st.success("🔥 KONDISI MOTOR SANGAT PRIMA")
     elif total_health >= 50:
-        badge_status, b_color = "BUTUH REPARASI / SERVIS 🔧", "#ffcc00"
+        st.warning("🔧 MOTOR BUTUH SERVIS / MAINTENANCE")
     else:
-        badge_status, b_color = "KONDISI KRITIS / BAHAYA 🚨", "#ff3333"
-        
-    st.markdown(f"""
-        <div style="background-color:#14161d; border:2px solid {b_color}; padding:20px; border-radius:10px; text-align:center;">
-            <p style="margin:0; font-size:14px; color:#a0a5b5; font-weight:bold;">KESEHATAN TOTAL KENDARAAN</p>
-            <h1 style='font-size:65px; margin:5px 0; color:{b_color} !important;'>{total_health}%</h1>
-            <p style="margin:0; font-size:18px; color:#ffffff; font-weight:bold;">{badge_status}</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    ada_critical = any(p["status"] == "CRITICAL" for p in semua_hasil_part)
-    if ada_critical:
-        st.toast("⚠️ WARNING: Deteksi Komponen Berstatus Kritis! Segera Periksa Hangar.", icon="🚨")
+        st.error("🚨 BAHAYA! KONDISI MOTOR KRITIS")
 
-# ==========================================
-# SMART FILTER VISUAL WEB CARD GRID
-# ==========================================
-st.markdown("---")
-st.write("### 🚨 3. LIVE MONITORING RESPONSIVE CARD STATUS")
-
-semua_hasil_part.sort(key=lambda x: (0 if x["status"] == "CRITICAL" else (1 if x["status"] == "WARNING" else 2)))
-
-for p in semua_hasil_part:
-    km_text = f"{p['sisa_km']:,} Km" if isinstance(p['sisa_km'], int) else p['sisa_km']
-    hari_text = f"{p['sisa_hari']} Hari" if p['sisa_hari'] != 9999 else "PERMANEN"
-    
-    st.markdown(f"""
-        <div class="rpg-row" style="border-left: 8px solid {p['warna']};">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div style="flex: 2; min-width: 220px;">
-                    <span class="category-tag">{p['kategori']}</span>
-                    <div class="part-title">{p['nama']}</div>
-                </div>
-                <div style="flex: 1; min-width: 100px;">
-                    <div class="stat-label">Sisa Jarak</div>
-                    <div class="stat-value" style="color: {p['warna']};">{km_text}</div>
-                </div>
-                <div style="flex: 1; min-width: 100px;">
-                    <div class="stat-label">Sisa W
+# Tabel Status Live
+st.write("---

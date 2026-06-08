@@ -5,10 +5,10 @@ import hashlib
 import json                     
 from datetime import datetime   
 
-# Konfigurasi halaman dasar
+# Konfigurasi Tema Halaman Utama
 st.set_page_config(page_title="Garage HUD Cloud", page_icon="🏁", layout="wide")
 
-# Master data komponen
+# Master Data Batas Limit Komponen Motor
 MASTER_KOMPONEN = {
     "Mesin Utama": [
         {"id": "eng_oli", "nama": "Oli Mesin", "limit_km": 3000, "limit_bulan": 2},
@@ -43,17 +43,19 @@ MASTER_KOMPONEN = {
 if "garasi_data" not in st.session_state:
     st.session_state["garasi_data"] = {}
 
-# Sidebar Kiri
+# --- PANEL KONTROL SIDEBAR KIRI ---
 st.sidebar.title("🏁 CLOUD GARAGE")
-st.sidebar.write("---")
+st.sidebar.markdown("---")
 nama_motor = st.sidebar.text_input("MODEL MOTOR", value="HONDA CBR 250RR")
 odo_now = st.sidebar.number_input("ODOMETER SEKARANG (KM)", min_value=0, value=25000)
 km_harian = st.sidebar.slider("JARAK TEMPUH HARIAN (KM)", min_value=5, max_value=200, value=40)
 
-hash_garasi = hashlib.sha256(nama_motor.encode()).hexdigest()[:10].upper()
-st.sidebar.write(f"🔑 **CHASSIS ID:** WEB-{hash_garasi}")
+# Menghitung Kode Sasis Unik Digital
+hash_obj = hashlib.sha256(nama_motor.encode())
+hash_garasi = hash_obj.hexdigest()[:10].upper()
+st.sidebar.info(f"🔑 CHASSIS ID: WEB-{hash_garasi}")
 
-st.sidebar.write("---")
+st.sidebar.markdown("---")
 st.sidebar.subheader("🛠️ BACKUP TOOLKIT")
 uploaded_file = st.sidebar.file_uploader("Import Data Garasi (.json)", type=["json"])
 if uploaded_file is not None:
@@ -67,7 +69,8 @@ if st.sidebar.button("🗑️ RESET ALL DATA"):
     st.session_state["garasi_data"] = {}
     st.rerun()
 
-# Pemrosesan Data
+
+# --- ENGINE PROSES KOMPONEN ---
 semua_hasil_part = []
 skor_sistem = {kategori: [] for kategori in MASTER_KOMPONEN.keys()}
 
@@ -121,8 +124,9 @@ with st.expander("⚙️ KLIK DI SINI UNTUK MENGISI ODO / TANGGAL PASANG KOMPONE
             })
             skor_sistem[kategori].append(persen_sisa)
 
-# Tampilan Utama Telemetri
-st.write("---")
+
+# --- DISPLAY TELEMETRI DIAGNOSTIK Utama ---
+st.markdown("---")
 st.header("🎛️ 2. TELEMETRI DIAGNOSTIK KENDARAAN")
 
 col_radar, col_stats = st.columns([1, 1])
@@ -134,18 +138,33 @@ with col_radar:
     nilai_radar.append(nilai_radar[0])
 
     fig = go.Figure(data=go.Scatterpolar(r=nilai_radar, theta=kategori_radar, fill='toself'))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=False, height=280)
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=False, height=300)
     st.plotly_chart(fig, use_container_width=True)
 
 with col_stats:
     total_health = round(sum([p["persen"] for p in semua_hasil_part]) / len(semua_hasil_part))
-    st.metric(label="KESEHATAN TOTAL MOTOR", value=f"{total_health}%")
+    st.metric(label="INDOMETER KESEHATAN MOTOR", value=f"{total_health}%")
     if total_health >= 80:
         st.success("🔥 KONDISI MOTOR SANGAT PRIMA")
     elif total_health >= 50:
-        st.warning("🔧 MOTOR BUTUH SERVIS / MAINTENANCE")
+        st.warning("🔧 MOTOR BUTUH SERVIS / MAINTENANCE SEGERA")
     else:
-        st.error("🚨 BAHAYA! KONDISI MOTOR KRITIS")
+        st.error("🚨 BAHAYA! KONDISI MOTOR SUDAH KRITIS")
 
-# Tabel Status Live
-st.write("---
+
+# --- PANEL LIVE MONITORING DATAFRAME ---
+st.markdown("---")
+st.subheader("🚨 3. LIVE MONITORING KOMPONEN")
+df_tampil = pd.DataFrame(semua_hasil_part)
+df_tampil["sisa_hari"] = df_tampil["sisa_hari"].apply(lambda x: "PERMANEN" if x == 9999 else f"{x} Hari")
+st.dataframe(df_tampil, use_container_width=True, hide_index=True)
+
+
+# --- DATA PERSISTENCE MANAGEMENT ---
+st.markdown("---")
+st.subheader("💾 4. DATA MANAGEMENT LAPORAN")
+col_d1, col_d2 = st.columns(2)
+with col_d1:
+    st.download_button("📥 DOWNLOAD CSV LAPORAN", data=df_tampil.to_csv(index=False), file_name="laporan_bengkel.csv", mime="text/csv")
+with col_d2:
+    st.download_button("📦 EXPORT BACKUP (.JSON)", data=json.dumps(st.session_state["garasi_data"]), file_name="backup_garasi.json", mime="application/json")

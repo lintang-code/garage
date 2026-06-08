@@ -16,21 +16,45 @@ from datetime import datetime
 # ==========================================
 st.set_page_config(page_title="Cloud Tuning Garage HUD", page_icon="🏁", layout="wide")
 
+# Perbaikan paksa warna font dan background sidebar agar terlihat sangat jelas di HP/Web
 st.markdown("""
     <style>
+    /* Background Utama Website */
     .main { 
         background-color: #0c0d10; 
         color: #ffffff; 
     }
-    .stSidebar { 
-        background-color: #14161d !important; 
-        border-right: 3px solid #ff5722; 
+    
+    /* PAKSA SIDEBAR (BAGIAN KIRI) AGAR SANGAT JELAS & KONTRAS */
+    [data-testid="stSidebar"] {
+        background-color: #1a1d26 !important; /* Warna abu-abu gelap solid, bukan hitam pekat */
+        border-right: 3px solid #ff5722 !important; /* Garis pembatas oranye tegas */
     }
+    
+    /* Paksa semua teks di dalam sidebar agar berwarna putih terang/oranye */
+    [data-testid="stSidebar"] .stMarkdown p, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] span,
+    [data-testid="stSidebar"] div {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+    
+    /* Warna teks input box di dalam sidebar */
+    [data-testid="stSidebar"] input {
+        color: #ffffff !important;
+        background-color: #10121a !important;
+        border: 1px solid #ff5722 !important;
+    }
+    
+    /* Judul Utama */
     h1, h2, h3 { 
         color: #ff5722 !important; 
         font-family: 'Impact', 'Arial Black', sans-serif; 
         letter-spacing: 1px;
     }
+    
+    /* Kartu List Komponen */
     .rpg-row {
         background-color: #181b24;
         border: 2px solid #282d3d;
@@ -126,10 +150,10 @@ odo_now = st.sidebar.number_input("ODOMETER SEKARANG (KM)", min_value=0, value=2
 km_harian = st.sidebar.slider("JARAK TEMPUH HARIAN (KM)", min_value=5, max_value=200, value=40)
 
 hash_garasi = hashlib.sha256(nama_motor.encode()).hexdigest()[:10].upper()
-st.sidebar.caption(f"🔑 WEB CHASSIS ID: WEB-{hash_garasi}")
+st.sidebar.write(f"🔑 **WEB CHASSIS ID:** WEB-{hash_garasi}")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🛠️ BACKUP TOOLKIT FOR MOBILE")
+st.sidebar.markdown("### 🛠️ BACKUP TOOLKIT")
 
 uploaded_file = st.sidebar.file_uploader("Import Data Garasi (.json)", type=["json"])
 if uploaded_file is not None:
@@ -221,93 +245,4 @@ with col_radar:
 
     fig = go.Figure(data=go.Scatterpolar(r=nilai_radar, theta=kategori_radar, fill='toself', fillcolor='rgba(255, 87, 34, 0.2)', line=dict(color='#ff5722', width=3)))
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333"), angularaxis=dict(gridcolor="#333")), showlegend=False, height=300, paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig, use_container_width=True)
-
-with col_stats:
-    total_health = round(sum([p["persen"] for p in semua_hasil_part]) / len(semua_hasil_part))
-    
-    if total_health >= 80:
-        badge_status, b_color = "PERFORMA MOTOR PRIMA 🔥", "#00ffcc"
-    elif total_health >= 50:
-        badge_status, b_color = "BUTUH REPARASI / SERVIS 🔧", "#ffcc00"
-    else:
-        badge_status, b_color = "KONDISI KRITIS / BAHAYA 🚨", "#ff3333"
-        
-    st.markdown(f"""
-        <div style="background-color:#14161d; border:2px solid {b_color}; padding:20px; border-radius:10px; text-align:center;">
-            <p style="margin:0; font-size:14px; color:#a0a5b5; font-weight:bold;">KESEHATAN TOTAL KENDARAAN</p>
-            <h1 style='font-size:65px; margin:5px 0; color:{b_color} !important;'>{total_health}%</h1>
-            <p style="margin:0; font-size:18px; color:#ffffff; font-weight:bold;">{badge_status}</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # Perbaikan Audio: Menggunakan toast pemberitahuan bawaan Streamlit yang anti-gagal
-    ada_critical = any(p["status"] == "CRITICAL" for p in semua_hasil_part)
-    if ada_critical:
-        st.toast("⚠️ WARNING: Deteksi Komponen Berstatus Kritis! Segera Periksa Hangar.", icon="🚨")
-
-# ==========================================
-# SMART FILTER VISUAL WEB CARD GRID
-# ==========================================
-st.markdown("---")
-st.write("### 🚨 3. LIVE MONITORING RESPONSIVE CARD STATUS")
-
-semua_hasil_part.sort(key=lambda x: (0 if x["status"] == "CRITICAL" else (1 if x["status"] == "WARNING" else 2)))
-
-for p in semua_hasil_part:
-    km_text = f"{p['sisa_km']:,} Km" if isinstance(p['sisa_km'], int) else p['sisa_km']
-    hari_text = f"{p['sisa_hari']} Hari" if p['sisa_hari'] != 9999 else "PERMANEN"
-    
-    st.markdown(f"""
-        <div class="rpg-row" style="border-left: 8px solid {p['warna']};">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <div style="flex: 2; min-width: 220px;">
-                    <span class="category-tag">{p['kategori']}</span>
-                    <div class="part-title">{p['nama']}</div>
-                </div>
-                <div style="flex: 1; min-width: 100px;">
-                    <div class="stat-label">Sisa Jarak</div>
-                    <div class="stat-value" style="color: {p['warna']};">{km_text}</div>
-                </div>
-                <div style="flex: 1; min-width: 100px;">
-                    <div class="stat-label">Sisa Waktu</div>
-                    <div class="stat-value">{hari_text}</div>
-                </div>
-                <div style="flex: 1; min-width: 90px;">
-                    <div class="stat-label">Efisiensi</div>
-                    <div class="stat-value">{p['persen']}%</div>
-                </div>
-                <div style="flex: 1; text-align: right; min-width: 120px;">
-                    <span class="status-badge-inline" style="background-color: {p['warna']}; color: {p['teks_warna']}; width:110px; display:inline-block;">
-                        {p['status']}
-                    </span>
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-# ==========================================
-# MANAGEMENT PERSISTENSI FILE WEB
-# ==========================================
-st.markdown("---")
-st.write("### 💾 4. DATA MANAGEMENT LAPORAN WEB")
-
-df_export = pd.DataFrame(semua_hasil_part)[["kategori", "nama", "sisa_km", "sisa_hari", "persen", "status"]]
-df_export["sisa_hari"] = df_export["sisa_hari"].apply(lambda x: "PERMANEN" if x == 9999 else f"{x} Hari")
-
-col_btn1, col_btn2 = st.columns(2)
-with col_btn1:
-    st.download_button(
-        label="📥 DOWNLOAD DATA SERVIS (CSV)",
-        data=df_export.to_csv(index=False).encode('utf-8'),
-        file_name=f"Laporan_Web_Garage_{nama_motor.replace(' ', '_')}.csv",
-        mime="text/csv"
-    )
-with col_btn2:
-    backup_json_web = json.dumps(st.session_state["garasi_data"], indent=4)
-    st.download_button(
-        label="📦 EXPORT BACKUP GARASI PERMANEN (JSON)",
-        data=backup_json_web,
-        file_name=f"backup_web_garage_{nama_motor.replace(' ', '_')}.json",
-        mime="application/json"
-    )
+    st.plotly_chart

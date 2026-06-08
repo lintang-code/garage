@@ -35,9 +35,30 @@ st.markdown("""
     [data-testid="stSidebar"] .stMarkdown p, 
     [data-testid="stSidebar"] label, 
     [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] div {
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] small {
         color: #ffffff !important;
-        font-weight: 500 !important;
+        font-weight: bold !important;
+    }
+    
+    /* WARNAI KHUSUS AREA IMPORT FILE & BAGIAN KIRI BAWAH */
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] section {
+        background-color: #242936 !important;
+        border: 2px dashed #ff5722 !important;
+    }
+    
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] text,
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] span {
+        color: #ffffff !important;
+    }
+    
+    /* Tombol Reset di Kiri Bawah */
+    [data-testid="stSidebar"] button {
+        background-color: #ff5722 !important;
+        color: #ffffff !important;
+        border-radius: 5px !important;
+        width: 100% !important;
+        font-weight: bold !important;
     }
     
     /* Warna teks input box di dalam sidebar */
@@ -241,8 +262,3 @@ with col_radar:
     kategori_radar = list(skor_sistem.keys())
     nilai_radar = [round(sum(skor_sistem[kat])/len(skor_sistem[kat])) for kat in kategori_radar]
     kategori_radar.append(kategori_radar[0])
-    nilai_radar.append(nilai_radar[0])
-
-    fig = go.Figure(data=go.Scatterpolar(r=nilai_radar, theta=kategori_radar, fill='toself', fillcolor='rgba(255, 87, 34, 0.2)', line=dict(color='#ff5722', width=3)))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100], gridcolor="#333"), angularaxis=dict(gridcolor="#333")), showlegend=False, height=300, paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart

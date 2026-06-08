@@ -1,5 +1,5 @@
 # ==========================================
-# KUMPULAN IMPORT LIBRARY (VERSI WEB STABIL)
+# KUMPULAN IMPORT LIBRARY (VERSI WEB FINAL)
 # ==========================================
 import streamlit as st          
 import plotly.graph_objects as go 
@@ -111,19 +111,13 @@ MASTER_KOMPONEN = {
 }
 
 # ==========================================
-# WEB CLOUD STORAGE INITIALIZATION (SESSION STATE)
+# WEB CLOUD STORAGE INITIALIZATION
 # ==========================================
 if "garasi_data" not in st.session_state:
     st.session_state["garasi_data"] = {}
 
-# FLAT LIST UNTUK MEMUDAHKAN MANAGEMENT DATA
-ALL_PART_IDS = []
-for kat, parts in MASTER_KOMPONEN.items():
-    for p in parts:
-        ALL_PART_IDS.append(p["id"])
-
 # ==========================================
-# SIDEBAR CONTROLLER (INTEGRATED MANAGEMENT)
+# SIDEBAR CONTROLLER
 # ==========================================
 st.sidebar.markdown("# 🏁 CLOUD GARAGE")
 st.sidebar.markdown("---")
@@ -137,7 +131,6 @@ st.sidebar.caption(f"🔑 WEB CHASSIS ID: WEB-{hash_garasi}")
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🛠️ BACKUP TOOLKIT FOR MOBILE")
 
-# Fitur Unggah File JSON Backup langsung dari Web HP
 uploaded_file = st.sidebar.file_uploader("Import Data Garasi (.json)", type=["json"])
 if uploaded_file is not None:
     try:
@@ -151,12 +144,6 @@ if uploaded_file is not None:
 if st.sidebar.button("🗑️ RESET ALL DATA WEB"):
     st.session_state["garasi_data"] = {}
     st.rerun()
-
-# Multi-threading simulasi sinkronisasi cloud
-def simulasi_cloud_sync():
-    time.sleep(0.3)
-thread_sync = threading.Thread(target=simulasi_cloud_sync)
-thread_sync.start()
 
 # ==========================================
 # CALCULATION & ENGINE ENGINE CORE
@@ -172,7 +159,6 @@ with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREP
         st.markdown(f"#### 🔹 Kategori: {kategori}")
         for part in list_part:
             
-            # Ambil data lama dari session state web jika ada
             state_key_odo = f"state_o_{part['id']}"
             state_key_tgl = f"state_t_{part['id']}"
             
@@ -188,11 +174,9 @@ with st.expander("⚙️ KLIK UNTUK INPUT DATA KILOMETER & TANGGAL PASANG SPEREP
             with c_tgl:
                 t_pasang = st.date_input(f"Tanggal Pasang", value=saved_tgl, key=f"t_{part['id']}")
             
-            # Simpan langsung ke session state web
             st.session_state["garasi_data"][state_key_odo] = o_pasang
             st.session_state["garasi_data"][state_key_tgl] = t_pasang.strftime("%Y-%m-%d")
 
-            # Hitung sisa kapasitas pemakaian
             km_jalan = odo_now - o_pasang
             persen_km = ((part["limit_km"] - km_jalan) / part["limit_km"]) * 100 if part["limit_km"] else 100
             
@@ -257,6 +241,73 @@ with col_stats:
         </div>
     """, unsafe_allow_html=True)
     
+    # Perbaikan Audio: Menggunakan toast pemberitahuan bawaan Streamlit yang anti-gagal
     ada_critical = any(p["status"] == "CRITICAL" for p in semua_hasil_part)
     if ada_critical:
-        st.components.v1.html("""<audio autoplay><source src="data:audio/wav;base64,UklGRig
+        st.toast("⚠️ WARNING: Deteksi Komponen Berstatus Kritis! Segera Periksa Hangar.", icon="🚨")
+
+# ==========================================
+# SMART FILTER VISUAL WEB CARD GRID
+# ==========================================
+st.markdown("---")
+st.write("### 🚨 3. LIVE MONITORING RESPONSIVE CARD STATUS")
+
+semua_hasil_part.sort(key=lambda x: (0 if x["status"] == "CRITICAL" else (1 if x["status"] == "WARNING" else 2)))
+
+for p in semua_hasil_part:
+    km_text = f"{p['sisa_km']:,} Km" if isinstance(p['sisa_km'], int) else p['sisa_km']
+    hari_text = f"{p['sisa_hari']} Hari" if p['sisa_hari'] != 9999 else "PERMANEN"
+    
+    st.markdown(f"""
+        <div class="rpg-row" style="border-left: 8px solid {p['warna']};">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="flex: 2; min-width: 220px;">
+                    <span class="category-tag">{p['kategori']}</span>
+                    <div class="part-title">{p['nama']}</div>
+                </div>
+                <div style="flex: 1; min-width: 100px;">
+                    <div class="stat-label">Sisa Jarak</div>
+                    <div class="stat-value" style="color: {p['warna']};">{km_text}</div>
+                </div>
+                <div style="flex: 1; min-width: 100px;">
+                    <div class="stat-label">Sisa Waktu</div>
+                    <div class="stat-value">{hari_text}</div>
+                </div>
+                <div style="flex: 1; min-width: 90px;">
+                    <div class="stat-label">Efisiensi</div>
+                    <div class="stat-value">{p['persen']}%</div>
+                </div>
+                <div style="flex: 1; text-align: right; min-width: 120px;">
+                    <span class="status-badge-inline" style="background-color: {p['warna']}; color: {p['teks_warna']}; width:110px; display:inline-block;">
+                        {p['status']}
+                    </span>
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# MANAGEMENT PERSISTENSI FILE WEB
+# ==========================================
+st.markdown("---")
+st.write("### 💾 4. DATA MANAGEMENT LAPORAN WEB")
+
+df_export = pd.DataFrame(semua_hasil_part)[["kategori", "nama", "sisa_km", "sisa_hari", "persen", "status"]]
+df_export["sisa_hari"] = df_export["sisa_hari"].apply(lambda x: "PERMANEN" if x == 9999 else f"{x} Hari")
+
+col_btn1, col_btn2 = st.columns(2)
+with col_btn1:
+    st.download_button(
+        label="📥 DOWNLOAD DATA SERVIS (CSV)",
+        data=df_export.to_csv(index=False).encode('utf-8'),
+        file_name=f"Laporan_Web_Garage_{nama_motor.replace(' ', '_')}.csv",
+        mime="text/csv"
+    )
+with col_btn2:
+    backup_json_web = json.dumps(st.session_state["garasi_data"], indent=4)
+    st.download_button(
+        label="📦 EXPORT BACKUP GARASI PERMANEN (JSON)",
+        data=backup_json_web,
+        file_name=f"backup_web_garage_{nama_motor.replace(' ', '_')}.json",
+        mime="application/json"
+    )
